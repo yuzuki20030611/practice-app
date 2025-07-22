@@ -1,13 +1,28 @@
 version: "3.8"
 
 services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: baseball-stats-db
+    environment:
+      POSTGRES_DB: nekoapp
+      POSTGRES_USER: nekouser
+      POSTGRES_PASSWORD: nekopass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
   # Next.js Frontend
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3001:3000"
+      - "3001:3001"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -28,3 +43,7 @@ services:
       - ./backend:/app
     environment:
       - PYTHONPATH=/app
+      - DATABASE_URL=postgresql://nekouser:nekopass@db:5432/nekoapp
+# データ永続化用ボリューム
+volumes:
+  postgres_data:
