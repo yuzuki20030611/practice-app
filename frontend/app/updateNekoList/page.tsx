@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { Cat, getCatById, updateCat } from "../API/api";
 
-const updateNekoList = () => {
+const UpdateNekoList = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const catId = searchParams.get("id");
@@ -317,4 +317,4 @@ const updateNekoList = () => {
   );
 };
 
-export default updateNekoList;
+export default UpdateNekoList;
