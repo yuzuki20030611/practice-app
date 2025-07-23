@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { Cat, getCats } from "../API/api";
+import { Cat, deleteCat, getCats } from "../API/api";
 
 const NekoList = () => {
   const router = useRouter();
   const [cats, setCats] = useState<Cat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchCats = async () => {
@@ -33,6 +34,29 @@ const NekoList = () => {
 
   const clickUpdate = (catId: number) => {
     router.push(`/updateNekoList?id=${catId}`);
+  };
+
+  const clickDelete = async (catId: number, catName: string) => {
+    const confirmed = window.confirm(
+      `${catName}の情報を削除しますか？\nこの操作は元に戻せません。`
+    );
+
+    confirmed
+      ? (async () => {
+          setDeleting(catId);
+          try {
+            await deleteCat(catId);
+            alert(`${catName}の情報を削除しました 😿`);
+
+            // リストから削除して再描画
+            setCats((prevCats) => prevCats.filter((cat) => cat.id !== catId));
+          } catch (error: any) {
+            alert(`削除に失敗しました: ${error.message}`);
+          } finally {
+            setDeleting(null);
+          }
+        })()
+      : null;
   };
 
   return (
@@ -93,12 +117,22 @@ const NekoList = () => {
                         ) : null}
                       </div>
                     </div>
-                    <div className="text-center mt-1 pt-1 text-sm">
+                    <div className="text-center mt-4 pt-4 space-y-3">
                       <button
                         onClick={() => clickUpdate(cat.id!)}
-                        className="bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white px-5 py-3 rounded-full transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+                        className="w-full bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white px-5 py-2.5 rounded-full transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
                       >
-                        {cat.name}の情報を更新！
+                        📝 {cat.name}の情報を更新
+                      </button>
+
+                      <button
+                        onClick={() => clickDelete(cat.id!, cat.name)}
+                        disabled={deleting === cat.id}
+                        className="w-full bg-gradient-to-r from-red-400 to-red-500 hover:from-red-500 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-full transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+                      >
+                        {deleting === cat.id
+                          ? "削除中..."
+                          : `🗑️ ${cat.name}を削除`}
                       </button>
                     </div>
                   </div>
@@ -106,19 +140,21 @@ const NekoList = () => {
               </div>
             )}
             <div className="text-center">
-              <div className="flex gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
                 <button
                   onClick={clickBack}
-                  className="bg-white/50 backdrop-blur-sm hover:bg-white/70 text-gray-700 px-8 py-3 rounded-full transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="flex items-center justify-center gap-2 bg-white/80 backdrop-blur-sm hover:bg-white border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-[1.02]"
                 >
-                  ← ホーム
+                  <span>🏠</span>
+                  <span>ホームに戻る</span>
                 </button>
 
                 <button
                   onClick={createClick}
-                  className="bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white px-8 py-3 rounded-full transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-0.5"
                 >
-                  + 新しい猫ちゃん
+                  <span>✨</span>
+                  <span>新しい猫ちゃんを追加</span>
                 </button>
               </div>
             </div>
