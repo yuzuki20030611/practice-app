@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS cats (
     color VARCHAR(50),
     weight DECIMAL(4,1) CHECK (weight >= 0 AND weight <= 20),
     description TEXT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
