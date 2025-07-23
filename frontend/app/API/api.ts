@@ -56,21 +56,13 @@ export interface User {
   updated_at: string;
 }
 
-// ユーザー詳細情報（user詳細ページ用）
-export interface UserDetail {
-  id: number;
-  name: string;
-  email: string;
-  country?: string;
-  hobby?: string;
-  created_at: string;
-}
 
 // ユーザー基本情報（猫リスト表示用）
 export interface UserInfo {
   id: number;
   name: string;
   country?: string;
+  hobby?: string;  // ← この行を追加
 }
 
 // 猫型定義（完全版）
@@ -117,19 +109,7 @@ export const loginUser = async (loginData: UserLogin): Promise<User> => {
   }
 };
 
-// ユーザー詳細取得API
-export const getUserDetail = async (userId: number): Promise<UserDetail> => {
-  try {
-    const response = await api.get(`/users/${userId}`);
-    return response.data;
-  } catch (error: any) {
-    console.error("ユーザー詳細取得に失敗しました:", error);
-    throw new Error(
-      error.response?.data?.detail || 
-      `ユーザー詳細取得に失敗しました: ${error.message}`
-    );
-  }
-};
+
 
 // 猫関連API
 export const getCats = async (): Promise<Cat[]> => {
@@ -158,6 +138,7 @@ export const getCatById = async (id: number): Promise<Cat> => {
     );
   }
 };
+
 
 export const createCat = async (catData: Omit<Cat, "id" | "user_id" | "user" | "created_at" | "updated_at">): Promise<Cat> => {
   try {
@@ -197,6 +178,20 @@ export const deleteCat = async (id: number): Promise<{message: string}> => {
     throw new Error(
       error.response?.data?.detail ||
       `猫の削除に失敗しました: ${error.message}`
+    );
+  }
+};
+
+// 特定ユーザーの猫を取得する関数を追加
+export const getUserCats = async (userId: number): Promise<Cat[]> => {
+  try {
+    const response = await api.get(`/users/${userId}/cats`);
+    return response.data;
+  } catch (error: any) {
+    console.error("ユーザーの猫取得に失敗しました:", error);
+    throw new Error(
+      error.response?.data?.detail || 
+      `ユーザーの猫取得に失敗しました: ${error.message}`
     );
   }
 };

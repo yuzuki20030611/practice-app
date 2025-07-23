@@ -109,18 +109,7 @@ class UserInfo(BaseModel):
     id: int
     name: str
     country: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-
-class UserDetail(BaseModel):
-    id: int
-    name: str
-    email: str
-    country: Optional[str] = None
     hobby: Optional[str] = None
-    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -254,16 +243,6 @@ def login_user(login_data: UserLogin, db: Session = Depends(get_db)):
     return user
 
 
-@app.get("/users/{user_id}", response_model=UserDetail)
-def get_user_detail(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(UserModel).filter(UserModel.id == user_id).first()
-
-    if user is None:
-        raise HTTPException(status_code=404, detail="ユーザーが見つかりませんでした。")
-
-    return user
-
-
 @app.get("/cats", response_model=List[Cat])
 def get_cats(db: Session = Depends(get_db)):
     return (
@@ -291,21 +270,6 @@ def create_cat(
     db.commit()
     db.refresh(new_cat)
     return new_cat
-
-
-@app.get("/cats/{cat_id}", response_model=Cat)
-def get_cat(cat_id: int, db: Session = Depends(get_db)):
-    cat = (
-        db.query(CatModel)
-        .options(joinedload(CatModel.user))
-        .filter(CatModel.id == cat_id)
-        .first()
-    )
-
-    if cat is None:
-        raise HTTPException(status_code=404, detail="猫が見つかりませんでした。")
-
-    return cat
 
 
 @app.put("/cats/{cat_id}", response_model=Cat)
@@ -365,3 +329,30 @@ def delete_cat(
     db.delete(cat)
     db.commit()
     return {"message": f"{cat_name}の情報を削除しました"}
+
+
+@app.get("/users/{user_id}/cats", response_model=List[Cat])
+def get_user_cats(user_id: int, db: Session = Depends(get_db)):
+    cats = (
+        db.query(CatModel)
+        .options(joinedload(CatModel.user))
+        .filter(CatModel.user_id == user_id)
+        .order_by(CatModel.created_at.desc())
+        .all()
+    )
+    return cats
+
+
+@app.get("/cats/{cat_id}", response_model=Cat)
+def get_cat(cat_id: int, db: Session = Depends(get_db)):
+    cat = (
+        db.query(CatModel)
+        .options(joinedload(CatModel.user))
+        .filter(CatModel.id == cat_id)
+        .first()
+    )
+
+    if cat is None:
+        raise HTTPException(status_code=404, detail="猫が見つかりませんでした。")
+
+    return cat
