@@ -8,6 +8,7 @@ from typing import Optional, List
 import os
 from datetime import datetime
 from sqlalchemy import select
+import hashlib
 
 app = FastAPI()
 
@@ -37,6 +38,21 @@ app.add_middleware(
 
 
 # データベースモデル（テーブル定義）
+class UserModel(Base):
+    """ユーザーテーブル"""
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password = Column(String(255), nullable=False)  # ハッシュ化されたパスワード
+    country = Column(String(100), nullable=True)
+    hobby = Column(String(200), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class CatModel(Base):
     __tablename__ = "cats"
 
@@ -48,8 +64,36 @@ class CatModel(Base):
     age = Column(Integer, nullable=True)
     color = Column(String, nullable=True)
     weight = Column(Float, nullable=True)
-    description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ユーザー関連
+class UserCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+    country: Optional[str] = None
+    hobby: Optional[str] = None
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class User(BaseModel):
+    id: int
+    name: str
+    email: str
+    country: Optional[str] = None
+    hobby: Optional[str] = None
+    created_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # Pydanticモデル（API用）
@@ -74,9 +118,16 @@ class Cat(BaseModel):
     color: Optional[str] = None
     weight: Optional[float] = None
     description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
+
+
+def hash_password(password: str) -> str:
+    """パスワードをハッシュ化"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 
 # データベースセッション取得
@@ -100,6 +151,75 @@ async def health_check():
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
+
+
+@app.post("/users/register", response_model=User)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    """ユーザー登録"""
+    # メールアドレス重複チェック
+    existing_user = (
+        db.query(UserModel)
+        .filter(UserModel.email == user.email.strip().lower())
+        .first()
+    )
+    if existing_user:
+        raise HTTPException(
+            status_code=400, detail="このメールアドレスは既に登録されています"
+        )
+
+    # バリデーション
+    if not user.name.strip() or not user.email.strip() or not user.password.strip():
+        raise HTTPException(
+            status_code=400, detail="名前、メールアドレス、パスワードは必須です"
+        )
+
+    if len(user.password) < 6:
+        raise HTTPException(
+            status_code=400, detail="パスワードは6文字以上で入力してください"
+        )
+
+    # パスワードハッシュ化
+    hashed_password = hash_password(user.password)
+
+    # ユーザー作成
+    new_user = UserModel(
+        name=user.name.strip(),
+        email=user.email.strip().lower(),
+        password=hashed_password,
+        country=user.country.strip() if user.country else None,
+        hobby=user.hobby.strip() if user.hobby else None,
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return new_user
+
+
+@app.post("/users/login", response_model=User)
+def login_user(login_data: UserLogin, db: Session = Depends(get_db)):
+    """ユーザーログイン"""
+    # ユーザー検索
+    user = (
+        db.query(UserModel)
+        .filter(UserModel.email == login_data.email.strip().lower())
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=401, detail="メールアドレスまたはパスワードが間違っています"
+        )
+
+    # パスワード確認
+    hashed_password = hash_password(login_data.password)
+    if user.password != hashed_password:
+        raise HTTPException(
+            status_code=401, detail="メールアドレスまたはパスワードが間違っています"
+        )
+
+    return user
 
 
 @app.get("/cats", response_model=List[Cat])
@@ -130,6 +250,22 @@ def get_cat(cat_id: int, db: Session = Depends(get_db)):
     if cat is None:
         raise HTTPException(status_code=404, detail="猫が見つかりませんでした。")
     return cat
+
+
+@app.delete("/cats/{cat_id}")
+def delete_cat(cat_id: int, db: Session = Depends(get_db)):
+    """猫の情報を削除する"""
+    cat = (
+        db.query(CatModel).filter(CatModel.id == cat_id).first()
+    )  # これはCatModelインスタンス
+
+    if cat is None:
+        raise HTTPException(status_code=404, detail="猫の情報が見つかりませんでした")
+
+    db.delete(cat)
+    db.commit()
+
+    return {"message": f"{cat.name}の情報を削除しました"}
 
 
 @app.put("/cats/{cat_id}", response_model=Cat)
