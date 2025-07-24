@@ -1,14 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Cat, getCats, deleteCat } from "../API/api";
+import SearchBar from "../components/SearchBar";
 
 const NekoList = () => {
   const router = useRouter();
   const [cats, setCats] = useState<Cat[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
@@ -40,6 +42,44 @@ const NekoList = () => {
       }
     }
   }, []);
+
+  // 検索機能のロジック
+  const filteredCats = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return cats;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+
+    return cats.filter((cat) => {
+      // 猫の名前で検索
+      const nameMatch = cat.name.toLowerCase().includes(query);
+
+      // 猫の種類で検索
+      const breedMatch = cat.breed.toLowerCase().includes(query);
+
+      // 飼い主名で検索
+      const ownerMatch = cat.user?.name.toLowerCase().includes(query) || false;
+
+      // 性格で検索
+      const personalityMatch = cat.personality.toLowerCase().includes(query);
+
+      // 出身地で検索
+      const originMatch = cat.origin?.toLowerCase().includes(query) || false;
+
+      // 毛色で検索
+      const colorMatch = cat.color?.toLowerCase().includes(query) || false;
+
+      return (
+        nameMatch ||
+        breedMatch ||
+        ownerMatch ||
+        personalityMatch ||
+        originMatch ||
+        colorMatch
+      );
+    });
+  }, [cats, searchQuery]);
 
   const createClick = () => {
     router.push("createNekoList");
@@ -105,7 +145,27 @@ const NekoList = () => {
                   ? `${cats.length}匹の猫ちゃんたち`
                   : "猫ちゃんはまだいません"}
               </p>
+              {/* 検索バー */}
+              {cats.length > 0 && (
+                <SearchBar
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                />
+              )}
             </div>
+            {/* 検索結果の表示 */}
+            {searchQuery && (
+              <div className="mb-6 text-center">
+                <p className="text-gray-600">
+                  「{searchQuery}」の検索結果: {filteredCats.length}匹の猫ちゃん
+                </p>
+                {filteredCats.length === 0 && (
+                  <p className="text-gray-500 mt-2">
+                    検索条件に該当する猫ちゃんが見つかりませんでした 😿
+                  </p>
+                )}
+              </div>
+            )}
             {cats.length === 0 ? (
               <div className="py-16 text-center">
                 <div className="text-8xl mb-6 opacity-60">😸</div>
